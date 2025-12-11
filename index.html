@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Smart Garbage Monitor</title>
+
+<style>
+:root{--bg:#0f1724;--card:#0b1220;--accent:#10b981;--warn:#f59e0b;--danger:#ef4444;--muted:#94a3b8}
+*{box-sizing:border-box;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial}
+body{margin:0;min-height:100vh;background:linear-gradient(180deg,#071122 0%,#071426 100%);color:#e6eef8;display:flex;align-items:center;justify-content:center;padding:24px}
+.container{width:100%;max-width:900px}
+.card{background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(0,0,0,0.02));border-radius:12px;padding:20px;box-shadow:0 8px 30px rgba(2,6,23,0.6)}
+header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.meta{color:var(--muted);font-size:13px}
+.status-row{display:flex;gap:16px;align-items:center}
+.indicator{width:120px;height:120px;border-radius:999px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:30px;transition:0.3s}
+.indicator.green{background:rgba(16,185,129,0.12);color:var(--accent)}
+.indicator.red{background:rgba(239,68,68,0.12);color:var(--danger)}
+.details{flex:1}
+.small{font-size:13px;color:var(--muted)}
+button{background:#0b1220;border:1px solid rgba(255,255,255,0.04);color:inherit;padding:8px 12px;border-radius:8px;cursor:pointer;margin-right:6px}
+</style>
+</head>
+
+<body>
+<div class="container">
+  <div class="card">
+
+    <header>
+      <div>
+        <h1 style="font-size:28px;margin:0;display:flex;align-items:center;gap:10px">
+          🗑️ Smart Garbage Alert
+        </h1>
+        <div class="meta">Real-time bin monitoring system</div>
+      </div>
+      <div class="small">Last update: <span id="lastUpdate">—</span></div>
+    </header>
+
+    <section class="status-row">
+      <div id="indicator" class="indicator red">FULL</div>
+
+      <div class="details">
+        <div style="margin-bottom:12px">
+          <div class="small">Status</div>
+          <div id="stateText" style="font-size:34px;font-weight:700">FULL</div>
+        </div>
+
+        <button id="refreshBtn">🔄 Refresh</button>
+        <button id="emptiedBtn">🧹 Mark as Emptied</button>
+
+        <div class="small" style="margin-top:10px">
+          Last Emptied: <span id="lastEmptied">Never</span>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<script>
+// Correct RoboNinja API:
+const API_URL = "https://iot.roboninja.in/index.php?action=read_all&UID=NZ10";
+
+// UI references
+const indicatorEl = document.getElementById("indicator");
+const stateTextEl = document.getElementById("stateText");
+const lastUpdateEl = document.getElementById("lastUpdate");
+const lastEmptiedEl = document.getElementById("lastEmptied");
+
+// Refresh button
+document.getElementById("refreshBtn").onclick = fetchStatus;
+
+// Mark emptied manually
+document.getElementById("emptiedBtn").onclick = () => {
+  lastEmptiedEl.textContent = new Date().toLocaleString();
+};
+
+async function fetchStatus(){
+  try {
+    const res = await fetch(API_URL);
+    const data = await res.json();
+
+    console.log("API:", data);
+
+    const sensor = Number(data.D2); // 0 or 1
+    updateUI(sensor);
+
+    lastUpdateEl.textContent = new Date().toLocaleString();
+  } 
+  catch (e){
+    console.error("API error", e);
+  }
+}
+
+function updateUI(val){
+  if(val === 1){
+    // FULL
+    stateTextEl.textContent = "FULL";
+    indicatorEl.className = "indicator red";
+    indicatorEl.textContent = "FULL";
+
+    // Push notification
+    if(Notification.permission === "granted"){
+      new Notification("Garbage Bin Full", {
+        body:"The bin is full. Please empty it.",
+      });
+    }
+
+  } else {
+    // EMPTY
+    stateTextEl.textContent = "EMPTY";
+    indicatorEl.className = "indicator green";
+    indicatorEl.textContent = "EMPTY";
+  }
+}
+
+// Ask for notification permission
+if("Notification" in window){
+  Notification.requestPermission();
+}
+
+// Auto refresh every 3 sec
+setInterval(fetchStatus, 3000);
+fetchStatus();
+</script>
+
+</body>
+</html>
+
